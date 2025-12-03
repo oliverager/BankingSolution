@@ -1,0 +1,40 @@
+using Banking.Core.Entities;
+using Banking.Core.Interfaces;
+
+namespace Banking.Infrastructure.Repositories;
+
+public class TransactionRepository : IRepository<Transaction>
+{
+    private readonly BankingDbContext _db;
+
+    public TransactionRepository(BankingDbContext db)
+    {
+        _db = db;
+    }
+
+    public Task<IEnumerable<Transaction>> GetAllAsync(CancellationToken ct = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<Transaction?> GetByIdAsync(Guid id, CancellationToken ct = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    public async Task AddAsync(Transaction transaction, CancellationToken ct = default)
+        => await _db.Transactions.AddAsync(transaction, ct);
+
+    public Task SaveChangesAsync(Transaction entity, CancellationToken ct = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task RemoveAsync(Transaction entity, CancellationToken ct = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task SaveChangesAsync(CancellationToken ct = default)
+        => _db.SaveChangesAsync(ct);
+}
