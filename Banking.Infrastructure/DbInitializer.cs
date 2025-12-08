@@ -4,8 +4,8 @@ public class DbInitializer: IDbInitializer
 {
     public void Initialize(BankingDbContext context)
     {
-        context.Database.EnsureCreated();
         context.Database.EnsureDeleted();
+        context.Database.EnsureCreated();
     }
 }
 
