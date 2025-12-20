@@ -1,0 +1,16 @@
+services:
+  banking-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:5224"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5224
+      - ConnectionStrings__DefaultConnection=Data Source=/app/data/banking.db
+    volumes:
+      - banking_data:/app/data
+
+volumes:
+  banking_data:
