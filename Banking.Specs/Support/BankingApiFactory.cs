@@ -9,29 +9,43 @@ namespace Banking.Specs.Support;
 
 public class BankingApiFactory : WebApplicationFactory<Program>
 {
+    private SqliteConnection? _connection;
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.ConfigureServices(services =>
         {
-            var descriptor = services.SingleOrDefault(
+            // Remove existing DbContext registration
+            var dbDescriptor = services.SingleOrDefault(
                 d => d.ServiceType == typeof(DbContextOptions<BankingDbContext>));
 
-            if (descriptor is not null)
-            {
-                services.Remove(descriptor);
-            }
+            if (dbDescriptor != null)
+                services.Remove(dbDescriptor);
+
+            // Keep one in-memory connection open for the lifetime of the factory
+            _connection = new SqliteConnection("DataSource=:memory:");
+            _connection.Open();
 
             services.AddDbContext<BankingDbContext>(options =>
             {
-                var connection = new SqliteConnection("DataSource=:memory:");
-                connection.Open();
-                options.UseSqlite(connection);
+                options.UseSqlite(_connection);
             });
 
+            // Build and create schema
             var sp = services.BuildServiceProvider();
             using var scope = sp.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<BankingDbContext>();
             db.Database.EnsureCreated();
         });
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        base.Dispose(disposing);
+        if (disposing)
+        {
+            _connection?.Dispose();
+            _connection = null;
+        }
     }
 }
