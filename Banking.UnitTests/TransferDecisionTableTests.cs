@@ -1,5 +1,7 @@
 ﻿using Banking.Core.Entities;
 using Banking.Core.Interfaces;
+using Banking.Core.Interfaces.Repositories;
+using Banking.Core.Services;
 using Banking.Core.Transfers;
 using Moq;
 

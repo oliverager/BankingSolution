@@ -1,8 +1,10 @@
 ﻿using Banking.Core.Entities;
 using Banking.Core.Interfaces;
+using Banking.Core.Interfaces.Repositories;
+using Banking.Core.Interfaces.Services;
+using Banking.Core.Transfers;
 
-
-namespace Banking.Core.Transfers;
+namespace Banking.Core.Services;
 
 public class TransferService : ITransferService
 {
@@ -62,12 +64,11 @@ public class TransferService : ITransferService
             ToAccountId = to.Id,
             Amount = amount,
             TimestampUtc = DateTime.UtcNow,
-            Status = "Completed"
+            Status = TransactionStatus.Completed
         };
 
         await _transactions.AddAsync(transaction, ct);
         await _accounts.SaveChangesAsync(ct);
-        await _transactions.SaveChangesAsync(ct);
 
         return TransferResult.Ok();
     }

@@ -1,4 +1,15 @@
 services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: banking
+      POSTGRES_USER: banking
+      POSTGRES_PASSWORD: bankingpw
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
   banking-api:
     build:
       context: .
@@ -8,9 +19,9 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:5224
-      - ConnectionStrings__DefaultConnection=Data Source=/app/data/banking.db
-    volumes:
-      - banking_data:/app/data
+      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=banking;Username=banking;Password=bankingpw
+    depends_on:
+      - db
 
 volumes:
-  banking_data:
+  pgdata:

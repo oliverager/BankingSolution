@@ -1,4 +1,4 @@
-﻿namespace Banking.Core.Interfaces;
+﻿namespace Banking.Core.Interfaces.Repositories;
 
 public interface IRepository<T>
 {

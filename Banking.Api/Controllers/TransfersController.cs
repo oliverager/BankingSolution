@@ -1,5 +1,5 @@
 ﻿using Banking.Api.Contracts;
-using Banking.Core.Transfers;
+using Banking.Core.Interfaces.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Banking.Api.Controllers;

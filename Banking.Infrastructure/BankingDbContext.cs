@@ -10,6 +10,10 @@ public class BankingDbContext : DbContext
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Account> Accounts => Set<Account>();
     public DbSet<Transaction> Transactions => Set<Transaction>();
+    public DbSet<Creditor> Creditors => Set<Creditor>();
+    public DbSet<Mandate> Mandates => Set<Mandate>();
+    public DbSet<Collection> Collections => Set<Collection>();
+
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -31,7 +35,11 @@ public class BankingDbContext : DbContext
                 .WithMany(c => c.Accounts)
                 .HasForeignKey(a => a.CustomerId);
         });
-
+        
+        modelBuilder.Entity<Account>()
+            .HasIndex(a => a.Iban)
+            .IsUnique();
+        
         modelBuilder.Entity<Transaction>(b =>
         {
             b.HasKey(t => t.Id);
@@ -48,5 +56,28 @@ public class BankingDbContext : DbContext
                 .HasForeignKey(t => t.ToAccountId)
                 .OnDelete(DeleteBehavior.NoAction);
         });
+        
+        modelBuilder.Entity<Creditor>(b =>
+        {
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Name).IsRequired().HasMaxLength(200);
+            b.Property(x => x.CreditorNumber).HasMaxLength(50);
+        });
+
+        modelBuilder.Entity<Mandate>(b =>
+        {
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Status).IsRequired();
+            b.Property(x => x.SettlementAccountId).IsRequired();
+        });
+        
+        modelBuilder.Entity<Collection>(b =>
+        {
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Amount).HasColumnType("decimal(18,2)");
+            b.Property(x => x.Text).HasMaxLength(500);
+            b.Property(x => x.Status).IsRequired();
+        });
+
     }
 }

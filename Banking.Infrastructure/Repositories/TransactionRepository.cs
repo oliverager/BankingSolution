@@ -1,9 +1,10 @@
 using Banking.Core.Entities;
 using Banking.Core.Interfaces;
+using Banking.Core.Interfaces.Repositories;
 
 namespace Banking.Infrastructure.Repositories;
 
-public class TransactionRepository : IRepository<Transaction>
+public class TransactionRepository : ITransactionRepository
 {
     private readonly BankingDbContext _db;
 
@@ -31,6 +32,11 @@ public class TransactionRepository : IRepository<Transaction>
     }
 
     public Task RemoveAsync(Transaction entity, CancellationToken ct = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<IEnumerable<Transaction>> GetForAccountAsync(Guid accountId, CancellationToken ct = default)
     {
         throw new NotImplementedException();
     }
