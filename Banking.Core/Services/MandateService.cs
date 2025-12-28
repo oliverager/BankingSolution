@@ -9,35 +9,28 @@ public class MandateService : IMandateService
     private readonly IMandateRepository _mandates;
     private readonly IRepository<Customer> _customers;
     private readonly IRepository<Account> _accounts;
-    private readonly IRepository<Creditor> _creditors;
 
     public MandateService(
         IMandateRepository mandates,
         IRepository<Customer> customers,
-        IRepository<Account> accounts,
-        IRepository<Creditor> creditors)
+        IRepository<Account> accounts
+        )
     {
         _mandates = mandates;
         _customers = customers;
         _accounts = accounts;
-        _creditors = creditors;
+        
     }
 
     public async Task<Mandate> GetByIdAsync(Guid mandateId, CancellationToken ct = default)
         => await _mandates.GetByIdAsync(mandateId, ct)
            ?? throw new InvalidOperationException("MandateNotFound");
 
-    public async Task<Mandate> CreateAsync(Guid debtorCustomerId, Guid payerAccountId, Guid creditorId,
+    public async Task<Mandate> CreateAsync(Guid debtorCustomerId, Guid payerAccountId,
         Guid settlementAccountId, CancellationToken ct = default)
     {
         if (debtorCustomerId == Guid.Empty) throw new InvalidOperationException("DebtorCustomerIdRequired");
         if (payerAccountId == Guid.Empty) throw new InvalidOperationException("PayerAccountIdRequired");
-        if (creditorId == Guid.Empty) throw new InvalidOperationException("CreditorIdRequired");
-
-        // Validate creditor exists & active
-        var creditor = await _creditors.GetByIdAsync(creditorId, ct);
-        if (creditor is null || !creditor.IsActive)
-            throw new InvalidOperationException("CreditorNotFound");
 
         // Validate debtor exists
         var debtor = await _customers.GetByIdAsync(debtorCustomerId, ct);
@@ -61,7 +54,6 @@ public class MandateService : IMandateService
         {
             DebtorCustomerId = debtorCustomerId,
             PayerAccountId = payerAccountId,
-            CreditorId = creditorId,
             SettlementAccountId = settlementAccountId,
             Status = MandateStatus.Pending,
             CreatedUtc = DateTime.UtcNow

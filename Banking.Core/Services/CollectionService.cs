@@ -7,9 +7,9 @@ namespace Banking.Core.Services;
 public class CollectionService : ICollectionService
 {
     private readonly ICollectionRepository _collections;
-    private readonly IRepository<Mandate> _mandates;
+    private readonly IMandateRepository _mandates;
 
-    public CollectionService(ICollectionRepository collections, IRepository<Mandate> mandates)
+    public CollectionService(ICollectionRepository collections, IMandateRepository mandates)
     {
         _collections = collections;
         _mandates = mandates;

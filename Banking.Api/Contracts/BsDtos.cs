@@ -8,7 +8,6 @@ public record MandateResponse(
     Guid Id,
     Guid DebtorCustomerId,
     Guid PayerAccountId,
-    Guid CreditorId,
     MandateStatus Status,
     DateTime CreatedUtc,
     DateTime? ActivatedUtc,
@@ -33,7 +32,7 @@ public record CollectionResponse(
 public static class BsMappings
 {
     public static MandateResponse ToResponse(this Mandate m) =>
-        new(m.Id, m.DebtorCustomerId, m.PayerAccountId, m.CreditorId, m.Status, m.CreatedUtc, m.ActivatedUtc, m.CancelledUtc, m.SettlementAccountId);
+        new(m.Id, m.DebtorCustomerId, m.PayerAccountId, m.Status, m.CreatedUtc, m.ActivatedUtc, m.CancelledUtc, m.SettlementAccountId);
 
     public static CollectionResponse ToResponse(this Collection c) =>
         new(c.Id, c.MandateId, c.DueDateUtc, c.Amount, c.Text, c.Status, c.CreatedUtc, c.NotifiedUtc, c.DecisionUtc, c.CollectedUtc, c.FailureReason);

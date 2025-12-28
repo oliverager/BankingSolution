@@ -8,3 +8,9 @@ public class Customer
 
     public ICollection<Account> Accounts { get; set; } = new List<Account>();
 }
+
+public enum CustomerType
+{
+    Standard = 0,
+    Premium = 1
+}

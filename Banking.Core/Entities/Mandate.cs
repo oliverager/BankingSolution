@@ -6,8 +6,6 @@ public class Mandate
 
     public Guid DebtorCustomerId { get; set; }
     public Guid PayerAccountId { get; set; }
-
-    public Guid CreditorId { get; set; }
     
     public Guid SettlementAccountId { get; set; }
 

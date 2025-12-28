@@ -25,12 +25,7 @@ public class TransactionRepository : ITransactionRepository
 
     public async Task AddAsync(Transaction transaction, CancellationToken ct = default)
         => await _db.Transactions.AddAsync(transaction, ct);
-
-    public Task SaveChangesAsync(Transaction entity, CancellationToken ct = default)
-    {
-        throw new NotImplementedException();
-    }
-
+    
     public Task RemoveAsync(Transaction entity, CancellationToken ct = default)
     {
         throw new NotImplementedException();

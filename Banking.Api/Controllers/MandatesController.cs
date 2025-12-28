@@ -34,7 +34,7 @@ public class MandatesController : ControllerBase
     {
         try
         {
-            var m = await _mandates.CreateAsync(req.DebtorCustomerId, req.PayerAccountId, req.CreditorId, req.SettlementAccountId, ct);
+            var m = await _mandates.CreateAsync(req.DebtorCustomerId, req.PayerAccountId, req.SettlementAccountId, ct);
             return CreatedAtAction(nameof(GetById), new { id = m.Id }, m.ToResponse());
         }
         catch (InvalidOperationException ex)
