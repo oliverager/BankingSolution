@@ -1,6 +1,6 @@
 ﻿using Banking.Api.Contracts;
 using Banking.Core.Entities;
-using Banking.Core.Interfaces;
+using Banking.Core.Interfaces.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Banking.Api.Controllers;
@@ -9,32 +9,31 @@ namespace Banking.Api.Controllers;
 [Route("[Controller]")]
 public class CustomersController : ControllerBase
 {
-    private readonly IRepository<Customer> _customers;
+    private readonly ICustomerService _customerService;
 
-    public CustomersController(IRepository<Customer> customers)
+    public CustomersController(ICustomerService customerService)
     {
-        _customers = customers;
+        _customerService = customerService;
     }
 
     [HttpPost]
     public async Task<ActionResult<Customer>> CreateCustomer([FromBody] CreateCustomerRequest request, CancellationToken ct)
     {
-        var customer = new Customer
+        try
         {
-            Name = request.Name,
-            Type = request.Type
-        };
-
-        await _customers.AddAsync(customer, ct);
-        await _customers.SaveChangesAsync(ct);
-
-        return CreatedAtAction(nameof(GetCustomer), new { id = customer.Id }, customer);
+            var customer = await _customerService.CreateAsync(request.Name, request.Type, ct);
+            return CreatedAtAction(nameof(GetCustomer), new { id = customer.Id }, customer);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<Customer>> GetCustomer(Guid id, CancellationToken ct)
     {
-        var customer = await _customers.GetByIdAsync(id, ct);
+        var customer = await _customerService.GetByIdAsync(id, ct);
         if (customer is null) return NotFound();
         return customer;
     }

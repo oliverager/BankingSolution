@@ -11,7 +11,7 @@ public class Transaction
 
     public decimal Amount { get; set; }
     public DateTime TimestampUtc { get; set; }
-    public string Status { get; set; } = "Completed";
+    public TransactionStatus Status { get; set; } = TransactionStatus.Completed;
 
     [ForeignKey(nameof(FromAccountId))]
     [InverseProperty(nameof(Account.OutgoingTransactions))]
@@ -20,4 +20,11 @@ public class Transaction
     [ForeignKey(nameof(ToAccountId))]
     [InverseProperty(nameof(Account.IncomingTransactions))]
     public Account? ToAccount { get; set; }
+}
+
+public enum TransactionStatus 
+{
+    InProgress = 0,
+    Completed = 1,
+    Failed = 2
 }

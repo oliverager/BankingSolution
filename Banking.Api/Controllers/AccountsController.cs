@@ -1,6 +1,6 @@
 ﻿using Banking.Api.Contracts;
 using Banking.Core.Entities;
-using Banking.Core.Interfaces;
+using Banking.Core.Interfaces.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Banking.Api.Controllers;
@@ -9,39 +9,37 @@ namespace Banking.Api.Controllers;
 [Route("[Controller]")]
 public class AccountsController : ControllerBase
 {
-    private readonly IRepository<Account> _accounts;
-    private readonly IRepository<Customer> _customers;
+    private readonly IAccountService _accountService;
 
-    public AccountsController(IRepository<Account> accounts, IRepository<Customer> customers)
+    public AccountsController(IAccountService accountService)
     {
-        _accounts = accounts;
-        _customers = customers;
+        _accountService = accountService;
     }
 
     [HttpPost]
-    public async Task<ActionResult<Account>> CreateAccount([FromBody] CreateAccountRequest request, CancellationToken ct)
+    public async Task<ActionResult<Account>> CreateAccount([FromBody] CreateAccountRequest request,
+        CancellationToken ct)
     {
-        var customer = await _customers.GetByIdAsync(request.CustomerId, ct);
-        if (customer is null) return BadRequest("CustomerNotFound");
-
-        var account = new Account
+        try
         {
-            CustomerId = request.CustomerId,
-            Iban = request.Iban,
-            Balance = request.InitialBalance,
-            IsActive = true
-        };
+            var account = await _accountService.CreateAsync(
+                request.CustomerId,
+                request.Iban,
+                request.InitialBalance,
+                ct);
 
-        await _accounts.AddAsync(account, ct);
-        await _accounts.SaveChangesAsync(ct);
-
-        return CreatedAtAction(nameof(GetAccount), new { id = account.Id }, account);
+            return CreatedAtAction(nameof(GetAccount), new { id = account.Id }, account);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<Account>> GetAccount(Guid id, CancellationToken ct)
     {
-        var account = await _accounts.GetByIdAsync(id, ct);
+        var account = await _accountService.GetByIdAsync(id, ct);
         if (account is null) return NotFound();
         return account;
     }

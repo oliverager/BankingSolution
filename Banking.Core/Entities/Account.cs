@@ -11,10 +11,10 @@ public class Account
     public bool IsActive { get; set; } = true;
 
     public Customer? Customer { get; set; }
-    
+
     [InverseProperty(nameof(Transaction.FromAccount))]
     public ICollection<Transaction> OutgoingTransactions { get; set; } = new List<Transaction>();
-    
+
     [InverseProperty(nameof(Transaction.ToAccount))]
     public ICollection<Transaction> IncomingTransactions { get; set; } = new List<Transaction>();
 }

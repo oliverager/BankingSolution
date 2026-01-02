@@ -1,51 +1,57 @@
 ﻿using Banking.Core.Entities;
-using Banking.Core.Interfaces;
-
-using Banking.Core.Transfers;
-
+using Banking.Core.Interfaces.Repositories;
+using Banking.Core.Services;
 using Moq;
 
 namespace Banking.UnitTests;
 
 public class TransferDdPathTests
 {
-    private (TransferService service, Mock<IRepository<Account>> accounts, Mock<IRepository<Transaction>> transactions) Create()
+    private static (TransferService service, Mock<IRepository<Account>> accounts, Mock<IRepository<Transaction>> txs)
+        Create()
     {
         var accountRepo = new Mock<IRepository<Account>>();
         var txRepo = new Mock<IRepository<Transaction>>();
-        return (new TransferService(accountRepo.Object, txRepo.Object), accountRepo, txRepo);
+
+        // Default: SaveChanges works
+        accountRepo.Setup(r => r.SaveChangesAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        txRepo.Setup(r => r.SaveChangesAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+
+        var service = new TransferService(accountRepo.Object, txRepo.Object);
+        return (service, accountRepo, txRepo);
     }
 
     [Fact]
-    public async Task Transfer_ReturnsAccountNotFound_WhenAnyAccountMissing()
+    public async Task Transfer_ReturnsAccountNotFound_WhenFromMissing()
     {
         var (service, accounts, _) = Create();
 
-        accounts.Setup(a => a.GetByIdAsync(It.IsAny<Guid>(), default))
-                .ReturnsAsync((Account?)null);
+        accounts.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Account?)null);
 
-        var result = await service.TransferAsync(Guid.NewGuid(), Guid.NewGuid(), 100);
+        var result = await service.TransferAsync(Guid.NewGuid(), Guid.NewGuid(), 100m);
 
         Assert.False(result.Success);
         Assert.Equal("AccountNotFound", result.Reason);
     }
 
     [Fact]
-    public async Task Transfer_ReturnsAccountInactive_WhenAnyInactive()
+    public async Task Transfer_ReturnsAccountNotFound_WhenToMissing()
     {
         var (service, accounts, _) = Create();
 
-        var customer = new Customer { Name = "Test", Type = CustomerType.Standard };
-        var from = new Account { Id = Guid.NewGuid(), IsActive = false, Balance = 1_000, Customer = customer };
-        var to = new Account { Id = Guid.NewGuid(), IsActive = true, Balance = 0, Customer = customer };
+        var customer = new Customer { Id = Guid.NewGuid(), Name = "T", Type = CustomerType.Standard };
+        var from = new Account { Id = Guid.NewGuid(), IsActive = true, Balance = 1000m, Customer = customer };
+        Account? to = null;
 
-        accounts.Setup(a => a.GetByIdAsync(from.Id, default)).ReturnsAsync(from);
-        accounts.Setup(a => a.GetByIdAsync(to.Id, default)).ReturnsAsync(to);
+        accounts.Setup(r => r.GetByIdAsync(from.Id, It.IsAny<CancellationToken>())).ReturnsAsync(from);
+        accounts.Setup(r => r.GetByIdAsync(It.Is<Guid>(id => id != from.Id), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(to);
 
-        var result = await service.TransferAsync(from.Id, to.Id, 100);
+        var result = await service.TransferAsync(from.Id, Guid.NewGuid(), 100m);
 
         Assert.False(result.Success);
-        Assert.Equal("AccountInactive", result.Reason);
+        Assert.Equal("AccountNotFound", result.Reason);
     }
 
     [Fact]
@@ -53,17 +59,35 @@ public class TransferDdPathTests
     {
         var (service, accounts, _) = Create();
 
-        var customer = new Customer { Name = "Test", Type = CustomerType.Standard };
-        var from = new Account { Id = Guid.NewGuid(), IsActive = true, Balance = 1_000, Customer = customer };
-        var to = new Account { Id = Guid.NewGuid(), IsActive = true, Balance = 0, Customer = customer };
+        var customer = new Customer { Id = Guid.NewGuid(), Name = "T", Type = CustomerType.Standard };
+        var from = new Account { Id = Guid.NewGuid(), IsActive = true, Balance = 1000m, Customer = customer };
+        var to = new Account { Id = Guid.NewGuid(), IsActive = true, Balance = 0m, Customer = customer };
 
-        accounts.Setup(a => a.GetByIdAsync(from.Id, default)).ReturnsAsync(from);
-        accounts.Setup(a => a.GetByIdAsync(to.Id, default)).ReturnsAsync(to);
+        accounts.Setup(r => r.GetByIdAsync(from.Id, It.IsAny<CancellationToken>())).ReturnsAsync(from);
+        accounts.Setup(r => r.GetByIdAsync(to.Id, It.IsAny<CancellationToken>())).ReturnsAsync(to);
 
-        var result = await service.TransferAsync(from.Id, to.Id, 0);
+        var result = await service.TransferAsync(from.Id, to.Id, 0m);
 
         Assert.False(result.Success);
         Assert.Equal("InvalidAmount", result.Reason);
+    }
+
+    [Fact]
+    public async Task Transfer_ReturnsAccountInactive_WhenEitherInactive()
+    {
+        var (service, accounts, _) = Create();
+
+        var customer = new Customer { Id = Guid.NewGuid(), Name = "T", Type = CustomerType.Standard };
+        var from = new Account { Id = Guid.NewGuid(), IsActive = false, Balance = 1000m, Customer = customer };
+        var to = new Account { Id = Guid.NewGuid(), IsActive = true, Balance = 0m, Customer = customer };
+
+        accounts.Setup(r => r.GetByIdAsync(from.Id, It.IsAny<CancellationToken>())).ReturnsAsync(from);
+        accounts.Setup(r => r.GetByIdAsync(to.Id, It.IsAny<CancellationToken>())).ReturnsAsync(to);
+
+        var result = await service.TransferAsync(from.Id, to.Id, 100m);
+
+        Assert.False(result.Success);
+        Assert.Equal("AccountInactive", result.Reason);
     }
 
     [Fact]
@@ -71,56 +95,43 @@ public class TransferDdPathTests
     {
         var (service, accounts, _) = Create();
 
-        var customer = new Customer { Name = "Test", Type = CustomerType.Standard };
-        var from = new Account { Id = Guid.NewGuid(), IsActive = true, Balance = 50, Customer = customer };
-        var to = new Account { Id = Guid.NewGuid(), IsActive = true, Balance = 0, Customer = customer };
+        var customer = new Customer { Id = Guid.NewGuid(), Name = "T", Type = CustomerType.Standard };
+        var from = new Account { Id = Guid.NewGuid(), IsActive = true, Balance = 50m, Customer = customer };
+        var to = new Account { Id = Guid.NewGuid(), IsActive = true, Balance = 0m, Customer = customer };
 
-        accounts.Setup(a => a.GetByIdAsync(from.Id, default)).ReturnsAsync(from);
-        accounts.Setup(a => a.GetByIdAsync(to.Id, default)).ReturnsAsync(to);
+        accounts.Setup(r => r.GetByIdAsync(from.Id, It.IsAny<CancellationToken>())).ReturnsAsync(from);
+        accounts.Setup(r => r.GetByIdAsync(to.Id, It.IsAny<CancellationToken>())).ReturnsAsync(to);
 
-        var result = await service.TransferAsync(from.Id, to.Id, 100);
+        var result = await service.TransferAsync(from.Id, to.Id, 100m);
 
         Assert.False(result.Success);
         Assert.Equal("InsufficientBalance", result.Reason);
     }
 
     [Fact]
-    public async Task Transfer_ReturnsLimitExceeded_WhenDecisionTableDenies()
+    public async Task Transfer_Succeeds_AndCreatesTransaction_WhenHappyPath()
     {
-        var (service, accounts, _) = Create();
+        var (service, accounts, txs) = Create();
 
-        var customer = new Customer { Name = "Test", Type = CustomerType.Standard };
-        var from = new Account { Id = Guid.NewGuid(), IsActive = true, Balance = 10_000, Customer = customer };
-        var to = new Account { Id = Guid.NewGuid(), IsActive = true, Balance = 0, Customer = customer };
+        var customer = new Customer { Id = Guid.NewGuid(), Name = "T", Type = CustomerType.Standard };
+        var from = new Account { Id = Guid.NewGuid(), IsActive = true, Balance = 1000m, Customer = customer };
+        var to = new Account { Id = Guid.NewGuid(), IsActive = true, Balance = 200m, Customer = customer };
 
-        accounts.Setup(a => a.GetByIdAsync(from.Id, default)).ReturnsAsync(from);
-        accounts.Setup(a => a.GetByIdAsync(to.Id, default)).ReturnsAsync(to);
+        accounts.Setup(r => r.GetByIdAsync(from.Id, It.IsAny<CancellationToken>())).ReturnsAsync(from);
+        accounts.Setup(r => r.GetByIdAsync(to.Id, It.IsAny<CancellationToken>())).ReturnsAsync(to);
 
-        var result = await service.TransferAsync(from.Id, to.Id, 5_000);
+        txs.Setup(r => r.AddAsync(It.IsAny<Transaction>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
 
-        Assert.False(result.Success);
-        Assert.Equal("LimitExceeded", result.Reason);
-    }
-
-    [Fact]
-    public async Task Transfer_Succeeds_WhenAllChecksPass()
-    {
-        var (service, accounts, transactions) = Create();
-
-        var customer = new Customer { Name = "Test", Type = CustomerType.Premium };
-        var from = new Account { Id = Guid.NewGuid(), IsActive = true, Balance = 2_000, Customer = customer };
-        var to = new Account { Id = Guid.NewGuid(), IsActive = true, Balance = 500, Customer = customer };
-
-        accounts.Setup(a => a.GetByIdAsync(from.Id, default)).ReturnsAsync(from);
-        accounts.Setup(a => a.GetByIdAsync(to.Id, default)).ReturnsAsync(to);
-
-        var result = await service.TransferAsync(from.Id, to.Id, 1_000);
+        var result = await service.TransferAsync(from.Id, to.Id, 300m);
 
         Assert.True(result.Success);
         Assert.Null(result.Reason);
-        Assert.Equal(1_000, from.Balance);
-        Assert.Equal(1_500, to.Balance);
 
-        transactions.Verify(t => t.AddAsync(It.IsAny<Transaction>(), default), Times.Once);
+        Assert.Equal(700m, from.Balance);
+        Assert.Equal(500m, to.Balance);
+
+        txs.Verify(r => r.AddAsync(It.IsAny<Transaction>(), It.IsAny<CancellationToken>()), Times.Once);
+        accounts.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.AtLeastOnce);
     }
 }

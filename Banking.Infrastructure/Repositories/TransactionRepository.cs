@@ -1,9 +1,9 @@
 using Banking.Core.Entities;
-using Banking.Core.Interfaces;
+using Banking.Core.Interfaces.Repositories;
 
 namespace Banking.Infrastructure.Repositories;
 
-public class TransactionRepository : IRepository<Transaction>
+public class TransactionRepository : ITransactionRepository
 {
     private readonly BankingDbContext _db;
 
@@ -24,13 +24,13 @@ public class TransactionRepository : IRepository<Transaction>
 
     public async Task AddAsync(Transaction transaction, CancellationToken ct = default)
         => await _db.Transactions.AddAsync(transaction, ct);
-
-    public Task SaveChangesAsync(Transaction entity, CancellationToken ct = default)
+    
+    public Task RemoveAsync(Transaction entity, CancellationToken ct = default)
     {
         throw new NotImplementedException();
     }
 
-    public Task RemoveAsync(Transaction entity, CancellationToken ct = default)
+    public Task<IEnumerable<Transaction>> GetForAccountAsync(Guid accountId, CancellationToken ct = default)
     {
         throw new NotImplementedException();
     }

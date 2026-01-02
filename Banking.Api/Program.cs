@@ -1,7 +1,8 @@
 using System.Text.Json.Serialization;
 using Banking.Core.Entities;
-using Banking.Core.Interfaces;
-using Banking.Core.Transfers;
+using Banking.Core.Interfaces.Repositories;
+using Banking.Core.Interfaces.Services;
+using Banking.Core.Services;
 using Banking.Infrastructure;
 using Banking.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -9,8 +10,28 @@ using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<BankingDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")
-                      ?? "Data Source=banking.db"));
+{
+    var provider = builder.Configuration["Database:Provider"] ?? "Sqlite";
+    var cs = builder.Configuration.GetConnectionString("DefaultConnection");
+
+    if (string.IsNullOrWhiteSpace(cs))
+        throw new InvalidOperationException("Missing ConnectionStrings:DefaultConnection");
+
+    switch (provider.Trim().ToLowerInvariant())
+    {
+        case "npgsql":
+        case "postgres":
+        case "postgresql":
+            options.UseNpgsql(cs);
+            break;
+
+        case "sqlite":
+        default:
+            options.UseSqlite(cs);
+            break;
+    }
+});
+
 
 // Register initializer
 builder.Services.AddScoped<IDbInitializer, DbInitializer>();
@@ -18,26 +39,23 @@ builder.Services.AddScoped<IDbInitializer, DbInitializer>();
 builder.Services.AddScoped<IRepository<Customer>, CustomerRepository>();
 builder.Services.AddScoped<IRepository<Account>, AccountRepository>();
 builder.Services.AddScoped<IRepository<Transaction>, TransactionRepository>();
+builder.Services.AddScoped<ICollectionRepository, CollectionRepository>();
+builder.Services.AddScoped<IMandateRepository, MandateRepository>();
+
+builder.Services.AddScoped<IAccountService, AccountService>();
+builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<ITransferService, TransferService>();
+builder.Services.AddScoped<IMandateService, MandateService>();
+builder.Services.AddScoped<ICollectionService, CollectionService>();
+builder.Services.AddScoped<IBsRunService, BsRunService>();
 
 builder.Services.AddControllers()
-    .AddJsonOptions(opt =>
-{
-    opt.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
-});
+    .AddJsonOptions(opt => opt.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
-
-// Run initializer once at startup
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<BankingDbContext>();
-    var initializer = scope.ServiceProvider.GetRequiredService<IDbInitializer>();
-    initializer.Initialize(db);
-}
 
 if (app.Environment.IsDevelopment())
 {
@@ -46,10 +64,23 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
 app.UseAuthorization();
-
 app.MapControllers();
+
+if (app.Configuration.GetValue<bool>("Database:ResetAndSeedOnStartup")
+    && app.Environment.IsDevelopment())
+{
+    using var scope = app.Services.CreateScope();
+    var initializer = scope.ServiceProvider.GetRequiredService<IDbInitializer>();
+    await initializer.ResetAndSeedAsync();
+}
+
+// Remove the HTTPS redirect warning in tests
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    app.UseHttpsRedirection();
+}
+
 
 app.Run();
 

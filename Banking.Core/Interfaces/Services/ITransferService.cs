@@ -1,4 +1,6 @@
-namespace Banking.Core.Transfers;
+using Banking.Core.Transfers;
+
+namespace Banking.Core.Interfaces.Services;
 
 public interface ITransferService
 {
