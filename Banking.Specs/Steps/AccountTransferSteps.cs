@@ -119,4 +119,11 @@ public class AccountTransferSteps
         account.Should().NotBeNull();
         account!.Balance.Should().Be(expected);
     }
+    
+    [Then("the transfer should succeed")]
+    public void ThenTheTransferShouldSucceed()
+    {
+        ThenTransferAccepted();
+    }
+
 }

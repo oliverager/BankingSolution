@@ -9,14 +9,27 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var cs = builder.Configuration.GetConnectionString("DefaultConnection");
-
 builder.Services.AddDbContext<BankingDbContext>(options =>
 {
-    if (!string.IsNullOrWhiteSpace(cs) && cs.Contains("Host=", StringComparison.OrdinalIgnoreCase))
-        options.UseNpgsql(cs);
-    else
-        options.UseSqlite(cs ?? "Data Source=banking.db");
+    var provider = builder.Configuration["Database:Provider"] ?? "Sqlite";
+    var cs = builder.Configuration.GetConnectionString("DefaultConnection");
+
+    if (string.IsNullOrWhiteSpace(cs))
+        throw new InvalidOperationException("Missing ConnectionStrings:DefaultConnection");
+
+    switch (provider.Trim().ToLowerInvariant())
+    {
+        case "npgsql":
+        case "postgres":
+        case "postgresql":
+            options.UseNpgsql(cs);
+            break;
+
+        case "sqlite":
+        default:
+            options.UseSqlite(cs);
+            break;
+    }
 });
 
 
@@ -36,12 +49,8 @@ builder.Services.AddScoped<IMandateService, MandateService>();
 builder.Services.AddScoped<ICollectionService, CollectionService>();
 builder.Services.AddScoped<IBsRunService, BsRunService>();
 
-builder.Services.AddScoped<IDbInitializer, DbInitializer>();
-
-
-
 builder.Services.AddControllers()
-    .AddJsonOptions(opt => { opt.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles; });
+    .AddJsonOptions(opt => opt.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -52,17 +61,26 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
-    
-    using var scope = app.Services.CreateScope();
-    var init = scope.ServiceProvider.GetRequiredService<IDbInitializer>();
-    await init.ResetAndSeedAsync();
 }
 
 app.UseHttpsRedirection();
-
 app.UseAuthorization();
-
 app.MapControllers();
+
+if (app.Configuration.GetValue<bool>("Database:ResetAndSeedOnStartup")
+    && app.Environment.IsDevelopment())
+{
+    using var scope = app.Services.CreateScope();
+    var initializer = scope.ServiceProvider.GetRequiredService<IDbInitializer>();
+    await initializer.ResetAndSeedAsync();
+}
+
+// Remove the HTTPS redirect warning in tests
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    app.UseHttpsRedirection();
+}
+
 
 app.Run();
 

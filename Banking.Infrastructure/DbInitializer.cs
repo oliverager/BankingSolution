@@ -1,26 +1,50 @@
 ﻿using Banking.Core.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace Banking.Infrastructure;
 
 public interface IDbInitializer
 {
     Task ResetAndSeedAsync(CancellationToken ct = default);
+    Task SeedIfEmptyAsync(CancellationToken ct = default);
 }
 
 public sealed class DbInitializer : IDbInitializer
 {
     private readonly BankingDbContext _db;
 
-    public DbInitializer(BankingDbContext db)
-    {
-        _db = db;
-    }
+    // Deterministic seed clock (tests won’t break on date/time)
+    private static readonly DateTime SeedNowUtc =
+        new DateTime(2025, 01, 01, 12, 00, 00, DateTimeKind.Utc);
+
+    public DbInitializer(BankingDbContext db) => _db = db;
 
     public async Task ResetAndSeedAsync(CancellationToken ct = default)
     {
+        // Hard reset: tests/dev only (call this explicitly)
         await _db.Database.EnsureDeletedAsync(ct);
         await _db.Database.EnsureCreatedAsync(ct);
+        await SeedCoreAsync(ct);
+    }
 
+    public async Task SeedIfEmptyAsync(CancellationToken ct = default)
+    {
+        // Safe for Docker/Postgres with volumes: don’t wipe anything
+        await _db.Database.EnsureCreatedAsync(ct);
+
+        var hasAnyData =
+            await _db.Customers.AnyAsync(ct) ||
+            await _db.Accounts.AnyAsync(ct) ||
+            await _db.Mandates.AnyAsync(ct) ||
+            await _db.Collections.AnyAsync(ct);
+
+        if (hasAnyData) return;
+
+        await SeedCoreAsync(ct);
+    }
+
+    private async Task SeedCoreAsync(CancellationToken ct)
+    {
         // ---- FIXED IDS (tests depend on these) ----
         var custA = Guid.Parse("11111111-1111-1111-1111-111111111111");
         var custB = Guid.Parse("22222222-2222-2222-2222-222222222222");
@@ -61,8 +85,8 @@ public sealed class DbInitializer : IDbInitializer
                 PayerAccountId = accA,
                 SettlementAccountId = accSettlement,
                 Status = MandateStatus.Active,
-                CreatedUtc = DateTime.UtcNow.AddDays(-10),
-                ActivatedUtc = DateTime.UtcNow.AddDays(-9)
+                CreatedUtc = SeedNowUtc.AddDays(-10),
+                ActivatedUtc = SeedNowUtc.AddDays(-9)
             },
             new Mandate
             {
@@ -71,41 +95,13 @@ public sealed class DbInitializer : IDbInitializer
                 PayerAccountId = accA,
                 SettlementAccountId = accSettlement,
                 Status = MandateStatus.Cancelled,
-                CreatedUtc = DateTime.UtcNow.AddDays(-10),
-                CancelledUtc = DateTime.UtcNow.AddDays(-5)
+                CreatedUtc = SeedNowUtc.AddDays(-10),
+                CancelledUtc = SeedNowUtc.AddDays(-5)
             }
         );
 
         // ---- Collections (BSRun focus) ----
-        _db.Collections.AddRange(
-            // Will be collected
-            new Collection
-            {
-                MandateId = mandateActive,
-                DueDateUtc = DateTime.UtcNow.Date,
-                Amount = 199m,
-                Status = CollectionStatus.Approved,
-                CreatedUtc = DateTime.UtcNow.AddDays(-2)
-            },
-            // Will fail (cancelled mandate)
-            new Collection
-            {
-                MandateId = mandateCancelled,
-                DueDateUtc = DateTime.UtcNow.Date,
-                Amount = 199m,
-                Status = CollectionStatus.Approved,
-                CreatedUtc = DateTime.UtcNow.AddDays(-2)
-            },
-            // Will be notified
-            new Collection
-            {
-                MandateId = mandateActive,
-                DueDateUtc = DateTime.UtcNow.Date.AddDays(7),
-                Amount = 199m,
-                Status = CollectionStatus.Created,
-                CreatedUtc = DateTime.UtcNow
-            }
-        );
+        _db.Collections.AddRange();
 
         await _db.SaveChangesAsync(ct);
     }
